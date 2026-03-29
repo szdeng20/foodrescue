@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food Rescue — Hyperlocal Cluster Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0d110e;
+    --surface:  #141a15;
+    --card:     #1a2219;
+    --border:   #2a3829;
+    --z1:       #22c97a;
+    --z2:       #f5a623;
+    --z3:       #e8553a;
+    --out:      #4a5548;
+    --canteen:  #8b7cf8;
+    --fast:     #22c97a;
+    --slow:     #8b7cf8;
+    --bulk:     #e8553a;
+    --incon:    #f5a623;
+    --text:     #d4e8d4;
+    --muted:    #6b8a6b;
+    --accent:   #22c97a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── header ── */
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  header h1 span { color: var(--accent); }
+  .subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── layout ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: calc(100vh - 73px);
+  }
+
+  /* ── sidebar ── */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+
+  /* sliders */
+  .slider-row { margin-bottom: 12px; }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+  .slider-label span { font-family: 'DM Mono', monospace; color: var(--accent); }
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  /* surplus sliders */
+  .surplus-row { margin-bottom: 10px; }
+  .surplus-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .surplus-label .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+  .tag-rice  { background: rgba(34,201,122,.15); color: var(--z1); }
+  .tag-bread { background: rgba(245,166,35,.15);  color: var(--z2); }
+  .tag-veg   { background: rgba(139,124,248,.15); color: var(--slow); }
+  .surplus-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 4px;
+  }
+  .surplus-total.warn { color: #e8553a; }
+
+  /* zone legend */
+  .zone-legend { display: flex; flex-direction: column; gap: 6px; }
+  .zl-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .zl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .zl-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-left: auto; }
+
+  /* archetype legend */
+  .arch-legend { display: flex; flex-direction: column; gap: 6px; }
+  .al-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .al-shape { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* stat pills */
+  .stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stat-pill {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+    min-width: 60px;
+  }
+  .stat-num { font-size: 20px; font-weight: 700; color: #fff; display: block; }
+  .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); display: block; margin-top: 2px; }
+
+  /* ── main area ── */
+  main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* tab bar */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+  }
+  .tab {
+    padding: 14px 20px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .2s, border-color .2s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* tab panels */
+  .tab-panel { display: none; flex: 1; padding: 20px 24px; overflow-y: auto; }
+  .tab-panel.active { display: flex; flex-direction: column; gap: 16px; }
+
+  /* canvases */
+  canvas {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: block;
+    width: 100%;
+  }
+
+  /* broadcast table */
+  .broadcast-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .broadcast-table thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+  .broadcast-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 8px 10px;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .broadcast-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(42,56,41,.5);
+    vertical-align: middle;
+  }
+  .broadcast-table tr:hover td { background: rgba(34,201,122,.04); }
+  .rank-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    width: 28px;
+  }
+  .chat-name { font-weight: 600; color: #fff; font-size: 13px; }
+  .zone-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .arch-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .score-bar-wrap { width: 80px; height: 6px; background: var(--border); border-radius: 3px; display: inline-block; }
+  .score-bar { height: 100%; border-radius: 3px; background: var(--accent); transition: width .4s ease; }
+  .score-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); margin-left: 6px; }
+
+  /* scatter labels */
+  .two-canvas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .canvas-wrap { position: relative; }
+  .canvas-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  /* tooltip */
+  #tooltip {
+    position: fixed;
+    background: #0d1a0f;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-size: 12px;
+    pointer-events: none;
+    display: none;
+    z-index: 999;
+    min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  #tooltip strong { color: #fff; font-size: 13px; display: block; margin-bottom: 4px; }
+  #tooltip .trow { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  #tooltip .trow span { color: var(--text); font-family: 'DM Mono', monospace; }
+
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 1fr; }
+    aside { border-right: none; border-bottom: 1px solid var(--border); }
+    .two-canvas { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Food Rescue <span>/ Cluster Engine</span></h1>
+  <div class="subtitle">hyperlocal · carbon-aware · 3-layer clustering</div>
+</header>
+
+<div class="shell">
+<aside>
+
+  <!-- zone radii -->
+  <div class="panel">
+    <div class="panel-title">Carbon zones (metres)</div>
+    <div class="slider-row">
+      <div class="slider-label">Zone 1 · walk <span id="r1v">500</span>m</div>
+      <input type="range" id="r1" min="200" max="900" value="500" step="50">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label">Zone 2 · e-bike <span id="r2v">1500</span>m</div>
+      <input type="range" id="r2" min="600" max="2500" value="1500" step="100">
+    </div>
+    <div class="slider-row" style="margin-bottom:0">
+      <div class="slider-label">Zone 3 · car <span id="r3v">3000</span>m</div>
+      <input type="range" id="r3" min="1500" max="5000" value="3000" step="100">
+    </div>
+  </div>
+
+  <!-- surplus -->
+  <div class="panel">
+    <div class="panel-title">Today's surplus mix</div>
+    <div class="surplus-row">
+      <div class="surplus-label"><span>Rice dishes</span><span class="tag tag-rice" id="rice-pct">70%</span></div>
+      <input type="range" id="sl-rice" min="0" max="100" value="70" step="5">
+    </div>
+    <div class="surplus-row">
+      <div class="surplus-label"><span>Bread / buns</span><span class="tag tag-bread" id="bread-pct">20%</span></div>
+      <input type="range" id="sl-bread" min="0" max="100" value="20" step="5">
+    </div>
+    <div class="surplus-row" style="margin-bottom:0">
+      <div class="surplus-label"><span>Vegetables</span><span class="tag tag-veg" id="veg-pct">10%</span></div>
+      <input type="range" id="sl-veg" min="0" max="100" value="10" step="5">
+    </div>
+    <div class="surplus-total" id="surplus-total">Total: 100%</div>
+  </div>
+
+  <!-- stats -->
+  <div class="panel">
+    <div class="panel-title">Zone counts</div>
+    <div class="stats-row">
+      <div class="stat-pill"><span class="stat-num" id="s1" style="color:var(--z1)">—</span><span class="stat-lbl">walk</span></div>
+      <div class="stat-pill"><span class="stat-num" id="s2" style="color:var(--z2)">—</span><span class="stat-lbl">e-bike</span></div>
+      <div class="stat-pill"><span class="stat-num" id="s3" style="color:var(--z3)">—</span><span class="stat-lbl">car</span></div>
+      <div class="stat-pill"><span class="stat-num" id="s4" style="color:var(--out)">—</span><span class="stat-lbl">out</span></div>
+    </div>
+  </div>
+
+  <!-- zone legend -->
+  <div class="panel">
+    <div class="panel-title">Zone legend</div>
+    <div class="zone-legend">
+      <div class="zl-row"><div class="zl-dot" style="background:var(--z1)"></div>Zone 1 — walk<span class="zl-meta">0 gCO₂/km</span></div>
+      <div class="zl-row"><div class="zl-dot" style="background:var(--z2)"></div>Zone 2 — e-bike<span class="zl-meta">15 gCO₂/km</span></div>
+      <div class="zl-row"><div class="zl-dot" style="background:var(--z3)"></div>Zone 3 — car<span class="zl-meta">120 gCO₂/km</span></div>
+      <div class="zl-row"><div class="zl-dot" style="background:var(--canteen);border-radius:2px"></div>Canteen<span class="zl-meta">food source</span></div>
+    </div>
+  </div>
+
+  <!-- archetype legend -->
+  <div class="panel">
+    <div class="panel-title">Behaviour archetypes</div>
+    <div class="arch-legend">
+      <div class="al-row"><div class="zl-dot" style="background:var(--fast)"></div>Fast claimer</div>
+      <div class="al-row"><div class="zl-dot" style="background:var(--slow)"></div>Slow / weekend</div>
+      <div class="al-row"><div class="zl-dot" style="background:var(--bulk)"></div>Bulk collector</div>
+      <div class="al-row"><div class="zl-dot" style="background:var(--incon)"></div>Inconsistent</div>
+    </div>
+  </div>
+
+</aside>
+
+<main>
+  <div class="tabs">
+    <div class="tab active" data-tab="map">Geographic zones</div>
+    <div class="tab" data-tab="scatter">Behaviour clusters</div>
+    <div class="tab" data-tab="broadcast">Broadcast order</div>
+  </div>
+
+  <!-- TAB 1: map -->
+  <div class="tab-panel active" id="tab-map">
+    <canvas id="mapCanvas" height="460"></canvas>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">
+      Dot size = claim rate &nbsp;·&nbsp; Dot colour = zone &nbsp;·&nbsp; Hover for details
+    </div>
+  </div>
+
+  <!-- TAB 2: scatter -->
+  <div class="tab-panel" id="tab-scatter">
+    <div class="two-canvas">
+      <div class="canvas-wrap">
+        <div class="canvas-label">CLAIM RATE vs PICKUP SPEED (k-means archetypes)</div>
+        <canvas id="scatterCanvas" height="360"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-label">FOOD MATCH SCORE vs COMPOSITE SCORE</div>
+        <canvas id="scatter2Canvas" height="360"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: broadcast -->
+  <div class="tab-panel" id="tab-broadcast">
+    <table class="broadcast-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Group chat</th>
+          <th>Zone</th>
+          <th>Archetype</th>
+          <th>Dist</th>
+          <th>Claim</th>
+          <th>Food match</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="broadcast-body"></tbody>
+    </table>
+  </div>
+</main>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────
+const CANTEEN = { name: "Canteen A", lat: 1.2966, lng: 103.8006 };
+
+const RAW = [
+  ["Blk 48 Residents", 1.2971, 103.8012, 0.91, 0.88, 0.90, 18, 0.8, 0.2, 0.5],
+  ["Blk 53 Families",  1.2978, 103.8001, 0.85, 0.75, 0.82, 19, 0.7, 0.3, 0.6],
+  ["Blk 45 DBSS",      1.2960, 103.8018, 0.78, 0.80, 0.76, 18, 0.6, 0.5, 0.4],
+  ["Duchess Condo",    1.2955, 103.7995, 0.40, 0.45, 0.38, 20, 0.3, 0.7, 0.3],
+  ["Blk 62 Corner",    1.2983, 103.8020, 0.72, 0.70, 0.68, 18, 0.9, 0.1, 0.3],
+  ["Queens Peak",      1.2948, 103.8030, 0.55, 0.60, 0.50, 21, 0.4, 0.6, 0.5],
+  ["Blk 75 Elderly",   1.2990, 103.7980, 0.88, 0.65, 0.85, 17, 0.8, 0.3, 0.7],
+  ["Commonwealth Hts", 1.3005, 103.7990, 0.60, 0.55, 0.58, 19, 0.5, 0.5, 0.4],
+  ["Ridgewood Condo",  1.2935, 103.7970, 0.30, 0.35, 0.28, 22, 0.2, 0.8, 0.2],
+  ["Blk 101 Active",   1.2975, 103.8035, 0.82, 0.85, 0.80, 18, 0.7, 0.4, 0.6],
+  ["Mei Ling St 150",  1.2958, 103.8008, 0.76, 0.72, 0.74, 18, 0.8, 0.2, 0.5],
+  ["Tanglin Halt Rd",  1.3010, 103.8010, 0.65, 0.60, 0.62, 19, 0.6, 0.4, 0.5],
+  ["Farrer Rd Condo",  1.3020, 103.7960, 0.35, 0.40, 0.32, 21, 0.3, 0.7, 0.3],
+  ["Blk 33 Corner",    1.2968, 103.7998, 0.90, 0.92, 0.88, 18, 0.9, 0.1, 0.4],
+  ["Holland Crest",    1.3030, 103.7950, 0.25, 0.30, 0.22, 22, 0.2, 0.8, 0.2],
+];
+
+const ZONE_BONUS  = { zone_1: 20, zone_2: 5, zone_3: -10, out: -20 };
+const ZONE_MODES  = { zone_1: "walk", zone_2: "e-bike", zone_3: "car", out: "—" };
+const ZONE_CO2    = { zone_1: 0, zone_2: 15, zone_3: 120, out: 0 };
+const ARCH_NAMES  = ["fast claimer", "slow / weekend", "bulk collector", "inconsistent"];
+const ARCH_COLORS = ["#22c97a", "#8b7cf8", "#e8553a", "#f5a623"];
+const ZONE_COLORS = { zone_1: "#22c97a", zone_2: "#f5a623", zone_3: "#e8553a", out: "#4a5548" };
+
+// ─── UTILS ──────────────────────────────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000, r = Math.PI / 180;
+  const dlat = (lat2 - lat1) * r, dlng = (lng2 - lng1) * r;
+  const a = Math.sin(dlat/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dlng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function dot(a, b) { return a.reduce((s,v,i) => s + v*b[i], 0); }
+function norm(a)    { return Math.sqrt(dot(a, a)); }
+function cosine(a, b) {
+  const d = norm(a) * norm(b);
+  return d === 0 ? 0 : dot(a, b) / d;
+}
+
+function mean(arr)   { return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function stddev(arr) {
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length) || 1;
+}
+
+// ─── LAYER 1: Geographic zones ──────────────────────────
+function assignZones(data, radii) {
+  return data.map(row => {
+    const d = haversine(CANTEEN.lat, CANTEEN.lng, row[1], row[2]);
+    let zone = "out";
+    if (d <= radii[0]) zone = "zone_1";
+    else if (d <= radii[1]) zone = "zone_2";
+    else if (d <= radii[2]) zone = "zone_3";
+    return {
+      name: row[0], lat: row[1], lng: row[2],
+      dist: Math.round(d), zone,
+      claim: row[3], speed: row[4], consistency: row[5], peakHr: row[6],
+      prefRice: row[7], prefBread: row[8], prefVeg: row[9],
+    };
+  });
+}
+
+// ─── LAYER 2: k-means behavioural clustering ────────────
+function kmeans(data, k=4, iters=60) {
+  const features = data.map(c => [c.claim, c.speed, c.consistency, c.peakHr/24]);
+
+  // Standardise
+  const cols = features[0].length;
+  const means = [], stds = [];
+  for (let j = 0; j < cols; j++) {
+    const col = features.map(r => r[j]);
+    means.push(mean(col)); stds.push(stddev(col));
+  }
+  const scaled = features.map(row => row.map((v,j) => (v - means[j]) / stds[j]));
+
+  // Init centroids (spread)
+  let centroids = [0,3,8,12].map(i => [...scaled[i]]);
+  let labels = new Array(data.length).fill(0);
+
+  for (let it = 0; it < iters; it++) {
+    // Assign
+    labels = scaled.map(pt => {
+      let best = 0, bestD = Infinity;
+      centroids.forEach((c, k) => {
+        const d = pt.reduce((s,v,i) => s+(v-c[i])**2, 0);
+        if (d < bestD) { bestD = d; best = k; }
+      });
+      return best;
+    });
+    // Update
+    centroids = centroids.map((_, ki) => {
+      const pts = scaled.filter((_,i) => labels[i] === ki);
+      if (!pts.length) return centroids[ki];
+      return scaled[0].map((_,j) => mean(pts.map(p => p[j])));
+    });
+  }
+
+  // Remap: sort clusters by mean claim rate descending
+  const clusterClaims = centroids.map((_,ki) => {
+    const idx = labels.map((l,i) => l===ki ? i : -1).filter(i=>i>=0);
+    return idx.length ? mean(idx.map(i => features[i][0])) : 0;
+  });
+  const order = [...Array(k).keys()].sort((a,b) => clusterClaims[b]-clusterClaims[a]);
+  const remap = {}; order.forEach((old, neo) => { remap[old] = neo; });
+  return labels.map(l => remap[l]);
+}
+
+// ─── LAYER 3: Cosine food match ─────────────────────────
+function foodMatch(data, surplus) {
+  return data.map(c => {
+    const pref = [c.prefRice, c.prefBread, c.prefVeg];
+    return cosine(pref, surplus);
+  });
+}
+
+// ─── Composite score ─────────────────────────────────────
+function compositeScore(c) {
+  const demand = (c.claim*0.5 + c.speed*0.25 + c.consistency*0.25) * 100;
+  return Math.round((demand + (ZONE_BONUS[c.zone]||0) + c.foodMatch*10) * 10) / 10;
+}
+
+// ─── STATE ───────────────────────────────────────────────
+let chats = [];
+let radii = [500, 1500, 3000];
+let surplus = [0.70, 0.20, 0.10];
+
+function recompute() {
+  const base  = assignZones(RAW, radii);
+  const bcl   = kmeans(base, 4);
+  const fmatch= foodMatch(base, surplus);
+  chats = base.map((c, i) => ({
+    ...c,
+    archetype: bcl[i],
+    foodMatch: Math.round(fmatch[i] * 1000) / 1000,
+  }));
+  chats.sort((a,b) => compositeScore(b) - compositeScore(a));
+
+  updateStats();
+  drawMap();
+  drawScatter();
+  drawScatter2();
+  renderTable();
+}
+
+// ─── STATS ───────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('s1').textContent = chats.filter(c=>c.zone==='zone_1').length;
+  document.getElementById('s2').textContent = chats.filter(c=>c.zone==='zone_2').length;
+  document.getElementById('s3').textContent = chats.filter(c=>c.zone==='zone_3').length;
+  document.getElementById('s4').textContent = chats.filter(c=>c.zone==='out').length;
+}
+
+// ─── MAP CANVAS ──────────────────────────────────────────
+function drawMap() {
+  const canvas = document.getElementById('mapCanvas');
+  const W = canvas.offsetWidth; canvas.width = W; canvas.height = 460;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, 460);
+
+  // Compute lat/lng bounds
+  const lats = chats.map(c=>c.lat).concat(CANTEEN.lat);
+  const lngs = chats.map(c=>c.lng).concat(CANTEEN.lng);
+  const latMin = Math.min(...lats)-0.0008, latMax = Math.max(...lats)+0.0008;
+  const lngMin = Math.min(...lngs)-0.0010, lngMax = Math.max(...lngs)+0.0010;
+
+  const pad = 40;
+  function toX(lng) { return pad + (lng - lngMin) / (lngMax - lngMin) * (W - pad*2); }
+  function toY(lat) { return 460 - pad - (lat - latMin) / (latMax - latMin) * (460 - pad*2); }
+
+  const cx = toX(CANTEEN.lng), cy = toY(CANTEEN.lat);
+
+  // Zone rings
+  const zoneDefs = [
+    { zone: 'zone_3', r: radii[2], color: '#e8553a' },
+    { zone: 'zone_2', r: radii[1], color: '#f5a623' },
+    { zone: 'zone_1', r: radii[0], color: '#22c97a' },
+  ];
+  zoneDefs.forEach(({ r, color }) => {
+    // px per metre (approximate at Singapore latitude)
+    const mPerDeg = 111000;
+    const degR = r / mPerDeg;
+    const rx = Math.abs(toX(CANTEEN.lng + degR) - cx);
+    ctx.beginPath();
+    ctx.arc(cx, cy, rx, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.07;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // radius label
+    ctx.fillStyle = color;
+    ctx.font = '9px DM Mono, monospace';
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(`${r}m`, cx + rx + 3, cy - 4);
+    ctx.globalAlpha = 1;
+  });
+
+  // Lines from canteen to each chat
+  chats.forEach(c => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(toX(c.lng), toY(c.lat));
+    ctx.strokeStyle = ZONE_COLORS[c.zone];
+    ctx.lineWidth = 0.4;
+    ctx.globalAlpha = 0.2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Group chat dots
+  chats.forEach(c => {
+    const x = toX(c.lng), y = toY(c.lat);
+    const r = 5 + c.claim * 9;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = ZONE_COLORS[c.zone];
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // archetype ring
+    ctx.beginPath();
+    ctx.arc(x, y, r+2, 0, Math.PI*2);
+    ctx.strokeStyle = ARCH_COLORS[c.archetype];
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.6;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // label
+    ctx.fillStyle = '#d4e8d4';
+    ctx.font = '9px Syne, sans-serif';
+    ctx.fillText(c.name.split(' ').slice(0,2).join(' '), x + r + 4, y + 3);
+  });
+
+  // Canteen marker
+  ctx.fillStyle = '#8b7cf8';
+  ctx.beginPath();
+  ctx.roundRect(cx - 20, cy - 13, 40, 26, 5);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px Syne, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Canteen', cx, cy + 4);
+  ctx.textAlign = 'left';
+
+  // Store positions for hover
+  canvas._points = chats.map(c => ({ c, x: toX(c.lng), y: toY(c.lat), r: 5 + c.claim * 9 }));
+}
+
+// ─── SCATTER 1: claim vs speed ───────────────────────────
+function drawScatter() {
+  const canvas = document.getElementById('scatterCanvas');
+  const W = canvas.offsetWidth; canvas.width = W; canvas.height = 360;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, 360);
+  const pad = 36;
+
+  function sx(v) { return pad + v * (W - pad*2); }
+  function sy(v) { return 360 - pad - v * (360 - pad*2); }
+
+  // Grid
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+    ctx.strokeStyle = '#2a3829'; ctx.lineWidth = 0.5;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(sx(v), pad); ctx.lineTo(sx(v), 360-pad); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, sy(v)); ctx.lineTo(W-pad, sy(v)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4a5548'; ctx.font = '9px DM Mono, monospace';
+    ctx.fillText(Math.round(v*100)+'%', sx(v)-8, 360-pad+12);
+    ctx.fillText(Math.round(v*100)+'%', 2, sy(v)+3);
+  });
+
+  // Axis labels
+  ctx.fillStyle = '#6b8a6b'; ctx.font = '9px DM Mono, monospace';
+  ctx.textAlign = 'center'; ctx.fillText('claim rate →', W/2, 360-2); ctx.textAlign = 'left';
+  ctx.save(); ctx.translate(10, 180); ctx.rotate(-Math.PI/2);
+  ctx.textAlign = 'center'; ctx.fillText('pickup speed →', 0, 0); ctx.restore();
+
+  chats.forEach(c => {
+    const x = sx(c.claim), y = sy(c.speed);
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2);
+    ctx.fillStyle = ARCH_COLORS[c.archetype];
+    ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#d4e8d4'; ctx.font = '8px Syne';
+    ctx.fillText(c.name.split(' ')[0], x+9, y+3);
+  });
+
+  canvas._points = chats.map(c => ({ c, x: sx(c.claim), y: sy(c.speed), r: 7 }));
+}
+
+// ─── SCATTER 2: food match vs composite ─────────────────
+function drawScatter2() {
+  const canvas = document.getElementById('scatter2Canvas');
+  const W = canvas.offsetWidth; canvas.width = W; canvas.height = 360;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, 360);
+  const pad = 36;
+
+  const scores = chats.map(c => compositeScore(c));
+  const minS = Math.min(...scores), maxS = Math.max(...scores);
+  function sx(v) { return pad + (v - 0.2) / 0.8 * (W - pad*2); }
+  function sy(v) { return 360 - pad - (v - minS) / (maxS - minS + 1) * (360 - pad*2); }
+
+  [0.3, 0.5, 0.7, 0.9].forEach(v => {
+    ctx.strokeStyle = '#2a3829'; ctx.lineWidth = 0.5; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(sx(v), pad); ctx.lineTo(sx(v), 360-pad); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4a5548'; ctx.font = '9px DM Mono';
+    ctx.fillText(v.toFixed(1), sx(v)-6, 360-pad+12);
+  });
+
+  ctx.fillStyle = '#6b8a6b'; ctx.font = '9px DM Mono';
+  ctx.textAlign = 'center'; ctx.fillText('food match score →', W/2, 360-2); ctx.textAlign='left';
+
+  chats.forEach(c => {
+    const sc = compositeScore(c);
+    const x = sx(c.foodMatch), y = sy(sc);
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2);
+    ctx.fillStyle = ZONE_COLORS[c.zone]; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle='#d4e8d4'; ctx.font='8px Syne';
+    ctx.fillText(c.name.split(' ')[0], x+9, y+3);
+  });
+
+  canvas._points = chats.map(c => ({
+    c, x: sx(c.foodMatch), y: sy(compositeScore(c)), r: 7
+  }));
+}
+
+// ─── BROADCAST TABLE ─────────────────────────────────────
+const ZONE_BADGE_STYLE = {
+  zone_1: 'background:rgba(34,201,122,.15);color:#22c97a',
+  zone_2: 'background:rgba(245,166,35,.15);color:#f5a623',
+  zone_3: 'background:rgba(232,85,58,.15);color:#e8553a',
+  out:    'background:rgba(74,85,72,.3);color:#4a5548',
+};
+const ARCH_BADGE_STYLE = [
+  'background:rgba(34,201,122,.12);color:#22c97a',
+  'background:rgba(139,124,248,.12);color:#8b7cf8',
+  'background:rgba(232,85,58,.12);color:#e8553a',
+  'background:rgba(245,166,35,.12);color:#f5a623',
+];
+
+function renderTable() {
+  const tbody = document.getElementById('broadcast-body');
+  const maxScore = compositeScore(chats[0]) || 1;
+  tbody.innerHTML = chats.map((c, i) => {
+    const sc = compositeScore(c);
+    const pct = Math.round(sc / maxScore * 100);
+    return `<tr>
+      <td class="rank-num">${i+1}</td>
+      <td><div class="chat-name">${c.name}</div></td>
+      <td><span class="zone-badge" style="${ZONE_BADGE_STYLE[c.zone]}">${ZONE_MODES[c.zone]||'—'} · ${c.zone.replace('_',' ')}</span></td>
+      <td><span class="arch-badge" style="${ARCH_BADGE_STYLE[c.archetype]}">${ARCH_NAMES[c.archetype]}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${c.dist}m</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px">${Math.round(c.claim*100)}%</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${c.foodMatch.toFixed(2)}</td>
+      <td>
+        <span class="score-bar-wrap"><span class="score-bar" style="width:${pct}%"></span></span>
+        <span class="score-val">${sc}</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── TOOLTIP ─────────────────────────────────────────────
+function showTooltip(e, c) {
+  const tt = document.getElementById('tooltip');
+  tt.style.display = 'block';
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 10) + 'px';
+  tt.innerHTML = `
+    <strong>${c.name}</strong>
+    <div class="trow">Zone<span>${c.zone.replace('_',' ')} · ${ZONE_MODES[c.zone]||'—'}</span></div>
+    <div class="trow">Distance<span>${c.dist}m</span></div>
+    <div class="trow">Claim rate<span>${Math.round(c.claim*100)}%</span></div>
+    <div class="trow">Archetype<span>${ARCH_NAMES[c.archetype]}</span></div>
+    <div class="trow">Food match<span>${c.foodMatch.toFixed(3)}</span></div>
+    <div class="trow">Score<span>${compositeScore(c)}</span></div>
+  `;
+}
+function hideTooltip() {
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+function addHover(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const pts = canvas._points || [];
+    const hit = pts.find(p => Math.hypot(mx-p.x, my-p.y) < p.r + 6);
+    if (hit) { showTooltip(e, hit.c); canvas.style.cursor='pointer'; }
+    else      { hideTooltip(); canvas.style.cursor='default'; }
+  });
+  canvas.addEventListener('mouseleave', hideTooltip);
+}
+
+// ─── TABS ────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    setTimeout(() => { drawMap(); drawScatter(); drawScatter2(); }, 10);
+  });
+});
+
+// ─── CONTROLS ────────────────────────────────────────────
+function bindSlider(id, labelId, onchange) {
+  const el = document.getElementById(id);
+  const lbl = document.getElementById(labelId);
+  el.addEventListener('input', () => { lbl.textContent = el.value; onchange(); });
+}
+
+bindSlider('r1','r1v', () => { radii[0]=+document.getElementById('r1').value; recompute(); });
+bindSlider('r2','r2v', () => { radii[1]=+document.getElementById('r2').value; recompute(); });
+bindSlider('r3','r3v', () => { radii[2]=+document.getElementById('r3').value; recompute(); });
+
+function updateSurplus() {
+  const r = +document.getElementById('sl-rice').value;
+  const b = +document.getElementById('sl-bread').value;
+  const v = +document.getElementById('sl-veg').value;
+  const total = r + b + v;
+  document.getElementById('rice-pct').textContent  = r + '%';
+  document.getElementById('bread-pct').textContent = b + '%';
+  document.getElementById('veg-pct').textContent   = v + '%';
+  const lbl = document.getElementById('surplus-total');
+  lbl.textContent = `Total: ${total}%`;
+  lbl.className = 'surplus-total' + (total !== 100 ? ' warn' : '');
+  if (total > 0) {
+    surplus = [r/total, b/total, v/total];
+    recompute();
+  }
+}
+['sl-rice','sl-bread','sl-veg'].forEach(id =>
+  document.getElementById(id).addEventListener('input', updateSurplus));
+
+// ─── INIT ────────────────────────────────────────────────
+recompute();
+addHover('mapCanvas');
+addHover('scatterCanvas');
+addHover('scatter2Canvas');
+window.addEventListener('resize', () => { drawMap(); drawScatter(); drawScatter2(); });
+</script>
+</body>
+</html>
